@@ -646,3 +646,61 @@ fig4.savefig(SCATTER_OUT, dpi=150, bbox_inches="tight")
 print(f"Saved: {SCATTER_OUT}")
 
 print("\nSection C done.")
+
+
+# ===========================================================================
+# FIGURE 4 MODIFIED — Sampling Time vs Movement Time scatter
+# Consistent y-axis across panels (sharey=True)
+# Outliers removed: MT already trimmed at 99th pct per bin via mv_trim_c;
+# additionally trim SamplingTime at 99th pct per bin for the scatter only.
+# ===========================================================================
+
+# MODIFIED: shared y-axis + SamplingTime outlier trim
+
+# Compute 99th pct of SamplingTime per bin (on the already-MT-trimmed data)
+st_hi = mv_trim_c.groupby("Bin")["SamplingTime"].quantile(0.99)
+
+fig4m, axes4m = plt.subplots(1, 3, figsize=(18, 5.5), sharey=True)
+
+for b, ax in enumerate(axes4m):
+    sub = mv_trim_c[mv_trim_c.Bin == b].dropna(subset=["SamplingTime", "MT"])
+    # Remove SamplingTime outliers (99th pct per bin)
+    sub = sub[sub.SamplingTime <= st_hi[b]]
+
+    correct = sub[sub.ChoiceCorrect == 1]
+    wrong   = sub[sub.ChoiceCorrect == 0]
+
+    ax.scatter(correct.SamplingTime, correct.MT,
+               c="green", s=10, alpha=0.35, linewidths=0,
+               label=f"Correct (n={len(correct):,})")
+    ax.scatter(wrong.SamplingTime, wrong.MT,
+               c="red", s=10, alpha=0.35, linewidths=0,
+               label=f"Incorrect (n={len(wrong):,})")
+
+    x_all = sub.SamplingTime.values
+    y_all = sub.MT.values
+    if len(x_all) > 1:
+        coeffs = np.polyfit(x_all, y_all, 1)
+        x_fit  = np.array([x_all.min(), x_all.max()])
+        r = np.corrcoef(x_all, y_all)[0, 1]
+        ax.plot(x_fit, np.polyval(coeffs, x_fit), color="black", linewidth=1.8,
+                label=f"Linear fit  r={r:.3f}")
+
+    ax.set_xlabel("Sampling Time (s)", fontsize=11)
+    if b == 0:
+        ax.set_ylabel("Movement Time (s)", fontsize=11)
+    ax.set_title(f"{DIFF_LABELS[b]}  —  Coherence {BIN_LABELS[b]}\n"
+                 f"(n={len(sub):,} trials)", fontsize=10)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(fontsize=8.5, loc="upper right", markerscale=2)
+
+fig4m.suptitle("Sampling Time vs Movement Time per difficulty level\n"
+               "(correct = green, incorrect = red; black line = linear fit)",
+               fontsize=12, y=1.02)
+fig4m.tight_layout()
+SCATTER_MOD_OUT = HERE / "sampling_vs_movement_time_mod.png"
+fig4m.savefig(SCATTER_MOD_OUT, dpi=150, bbox_inches="tight")
+print(f"Saved: {SCATTER_MOD_OUT}")
+
+print("\nSection C + modifications done.")
